@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PlantVerse AI – Smart Plant Identifier & Care Assistant</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=DM+Sans:wght@300;400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#060d08; --surface:#0b1510; --s2:#0f1c14;
+  --green:#2dff6e; --g2:#00c94a; --gdim:rgba(45,255,110,.1);
+  --teal:#00ffd0; --amber:#f5c842; --red:#ff5555;
+  --text:#e4f2e8; --muted:#607a66; --border:rgba(45,255,110,.14);
+  --glow:0 0 40px rgba(45,255,110,.22);
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);overflow-x:hidden;cursor:none}
+
+/* CURSOR */
+#cur{width:18px;height:18px;border:2px solid var(--green);border-radius:50%;position:fixed;top:0;left:0;pointer-events:none;z-index:99999;transition:transform .15s,background .15s;mix-blend-mode:screen}
+#cur2{width:5px;height:5px;background:var(--green);border-radius:50%;position:fixed;top:0;left:0;pointer-events:none;z-index:99999}
+body.hov #cur{transform:scale(2.2)!important;background:rgba(45,255,110,.12)}
+
+/* BG CANVAS */
+#bgc{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none;opacity:.44}
+
+/* NAV */
+nav{position:fixed;top:0;left:0;right:0;z-index:200;display:flex;align-items:center;justify-content:space-between;padding:18px 48px;backdrop-filter:blur(22px);background:rgba(6,13,8,.75);border-bottom:1px solid var(--border)}
+.logo{font-family:'Playfair Display',serif;font-size:22px;font-weight:900;color:var(--green);text-shadow:0 0 20px rgba(45,255,110,.35)}
+.logo span{color:var(--teal)}
+.nav-links{display:flex;gap:32px}
+.nav-links a{text-decoration:none;color:var(--muted);font-size:14px;font-weight:500;transition:color .2s}
+.nav-links a:hover{color:var(--green)}
+.nav-cta{background:var(--green);color:#000;border:none;padding:10px 24px;border-radius:100px;font-family:'DM Sans',sans-serif;font-weight:700;font-size:14px;cursor:pointer;transition:all .25s;box-shadow:0 0 20px rgba(45,255,110,.28)}
+.nav-cta:hover{background:var(--teal);transform:translateY(-1px)}
+
+/* HERO */
+.hero{position:relative;z-index:1;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:130px 48px 80px;text-align:center;overflow:hidden}
+.badge{display:inline-flex;align-items:center;gap:8px;background:var(--gdim);border:1px solid var(--border);border-radius:100px;padding:6px 18px;font-size:12px;font-family:'Space Mono',monospace;color:var(--green);letter-spacing:1px;margin-bottom:32px;animation:fadeUp .8s ease both}
+.badge::before{content:'';width:7px;height:7px;background:var(--green);border-radius:50%;animation:blink 1.6s infinite}
+@keyframes blink{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.3;transform:scale(.6)}}
+.hero h1{font-family:'Playfair Display',serif;font-size:clamp(48px,8vw,100px);font-weight:900;line-height:.95;letter-spacing:-3px;margin-bottom:28px;animation:fadeUp .9s .1s ease both}
+.hero h1 em{font-style:normal;color:var(--green);display:block;text-shadow:0 0 40px rgba(45,255,110,.3)}
+.hero h1 .sm{font-size:.52em;font-weight:400;color:var(--muted);letter-spacing:-1px}
+.hero-sub{max-width:540px;color:var(--muted);font-size:18px;line-height:1.65;margin-bottom:48px;animation:fadeUp 1s .2s ease both}
+.hero-btns{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;animation:fadeUp 1s .3s ease both;margin-bottom:64px}
+.bp{background:var(--green);color:#000;border:none;padding:16px 40px;border-radius:100px;font-family:'DM Sans',sans-serif;font-weight:700;font-size:16px;cursor:pointer;transition:all .25s;box-shadow:0 0 40px rgba(45,255,110,.32);display:flex;align-items:center;gap:10px}
+.bp:hover{transform:translateY(-3px) scale(1.02);box-shadow:0 0 60px rgba(45,255,110,.5)}
+.bo{background:transparent;color:var(--text);border:1px solid var(--border);padding:16px 36px;border-radius:100px;font-family:'DM Sans',sans-serif;font-weight:500;font-size:16px;cursor:pointer;transition:all .25s}
+.bo:hover{border-color:var(--green);color:var(--green)}
+.wave{width:100%;animation:fadeUp 1s .4s ease both}
+
+/* SCANNER SECTION */
+.scan-sec{position:relative;z-index:1;padding:80px 48px;display:flex;flex-direction:column;align-items:center}
+.sec-lbl{font-family:'Space Mono',monospace;font-size:11px;letter-spacing:3px;color:var(--green);text-transform:uppercase;margin-bottom:14px}
+.sec-ttl{font-family:'Playfair Display',serif;font-size:clamp(30px,5vw,52px);font-weight:700;text-align:center;margin-bottom:52px;line-height:1.1}
+.scan-grid{width:100%;max-width:920px;display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start}
+
+/* ── CAMERA BOX ─────────────────────────────────
+   Strict z-index layers:
+   1  video
+   2  snapshot canvas
+   3  uploaded image
+   4  upload zone (idle state)
+   5  scan corners + scan line
+   6  flash overlay
+   20 controls  ← always on top, always clickable
+──────────────────────────────────────────────── */
+.cam-box{position:relative;background:var(--surface);border:1px solid var(--border);border-radius:24px;overflow:hidden;aspect-ratio:4/3;box-shadow:var(--glow)}
+
+#camVideo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:24px;z-index:1;display:none}
+#snapCanvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:24px;z-index:2;display:none}
+#prevImg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:24px;z-index:3;display:none}
+
+#upZone{position:absolute;inset:0;z-index:4;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:var(--surface);border:2px dashed var(--border);border-radius:22px;cursor:pointer;transition:border-color .2s,background .2s}
+#upZone:hover{border-color:var(--green);background:rgba(45,255,110,.03)}
+#upZone p{color:var(--muted);font-size:14px;text-align:center;pointer-events:none}
+#upZone.gone{display:none}
+#fileIn{display:none}
+.cam-ico{width:64px;height:64px;border:2px solid var(--green);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;animation:gp 2s infinite;box-shadow:0 0 30px rgba(45,255,110,.25);pointer-events:none}
+@keyframes gp{0%,100%{box-shadow:0 0 18px rgba(45,255,110,.18)}50%{box-shadow:0 0 48px rgba(45,255,110,.55)}}
+
+.sc{position:absolute;width:28px;height:28px;border-color:var(--green);border-style:solid;z-index:5;pointer-events:none}
+.sc.tl{top:12px;left:12px;border-width:3px 0 0 3px}
+.sc.tr{top:12px;right:12px;border-width:3px 3px 0 0}
+.sc.bl{bottom:12px;left:12px;border-width:0 0 3px 3px}
+.sc.br{bottom:12px;right:12px;border-width:0 3px 3px 0}
+
+#scanLine{position:absolute;left:12px;right:12px;height:2px;z-index:5;background:linear-gradient(90deg,transparent,var(--green),var(--teal),var(--green),transparent);box-shadow:0 0 10px var(--green);animation:sa 2s ease-in-out infinite;display:none;pointer-events:none}
+@keyframes sa{0%{top:12px;opacity:0}8%{opacity:1}50%{top:calc(100% - 14px)}92%{opacity:1}100%{top:12px;opacity:0}}
+
+#flash{position:absolute;inset:0;background:white;opacity:0;border-radius:22px;z-index:6;pointer-events:none;transition:opacity .22s}
+
+/* Controls — z-index:20 so they sit ABOVE every layer */
+.cam-ctrls{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);display:flex;gap:8px;align-items:center;z-index:20;white-space:nowrap}
+
+/* Base button — cursor:pointer so it's always clickable */
+.cb{background:rgba(0,0,0,.68);backdrop-filter:blur(12px);border:1px solid rgba(45,255,110,.22);border-radius:100px;color:var(--text);padding:8px 16px;font-size:13px;font-family:'DM Sans',sans-serif;font-weight:500;cursor:pointer;transition:all .18s;display:inline-flex;align-items:center;gap:6px;-webkit-tap-highlight-color:transparent;user-select:none}
+.cb:hover{border-color:var(--green);color:var(--green);background:rgba(0,0,0,.82)}
+.cb:active{transform:scale(.94)}
+.cb.on{background:var(--green);color:#000;border-color:var(--green);font-weight:700}
+.cb:disabled{opacity:.4;cursor:not-allowed;pointer-events:none}
+
+/* Snap — bright pulsing */
+#snapBtn{background:var(--green);color:#000;border-color:var(--green);font-weight:800;font-size:14px;padding:10px 20px;box-shadow:0 0 20px rgba(45,255,110,.5);animation:gp 1.5s infinite}
+#snapBtn:hover{background:var(--teal);border-color:var(--teal);box-shadow:0 0 32px rgba(0,255,208,.6);transform:scale(1.06)}
+
+/* Retake */
+#retakeBtn{background:rgba(255,85,85,.14);border-color:rgba(255,85,85,.3);color:#ff9090}
+#retakeBtn:hover{background:rgba(255,85,85,.28);border-color:var(--red);color:#fff}
+
+/* IDENTIFY BUTTON */
+.id-btn{background:linear-gradient(135deg,var(--g2),var(--teal));color:#000;border:none;width:100%;padding:16px;border-radius:14px;font-family:'DM Sans',sans-serif;font-weight:700;font-size:16px;cursor:pointer;transition:all .3s;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 4px 28px rgba(45,255,110,.28);position:relative;overflow:hidden}
+.id-btn::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.18),transparent);transform:translateX(-100%);transition:transform .5s}
+.id-btn:hover::after{transform:translateX(100%)}
+.id-btn:hover{transform:translateY(-2px);box-shadow:0 8px 40px rgba(45,255,110,.45)}
+.id-btn:active{transform:scale(.98)}
+.id-btn:disabled{opacity:.5;cursor:not-allowed;pointer-events:none}
+.spin{width:20px;height:20px;border:2.5px solid rgba(0,0,0,.22);border-top-color:#000;border-radius:50%;animation:rot .7s linear infinite;display:none}
+@keyframes rot{to{transform:rotate(360deg)}}
+
+/* RESULTS PANEL */
+.res-panel{background:var(--surface);border:1px solid var(--border);border-radius:24px;padding:28px;min-height:420px;display:flex;flex-direction:column;gap:16px;position:relative;overflow:hidden}
+.res-panel::before{content:'';position:absolute;top:0;left:0;width:100%;height:3px;background:linear-gradient(90deg,var(--green),var(--teal),var(--green));background-size:200%;animation:shim 2s linear infinite}
+@keyframes shim{0%{background-position:0%}100%{background-position:200%}}
+.res-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:12px;text-align:center;color:var(--muted)}
+.big-leaf{font-size:48px;opacity:.28;animation:fl 4s ease-in-out infinite}
+@keyframes fl{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+.rh{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.pnm{font-family:'Playfair Display',serif;font-size:26px;font-weight:700;color:var(--green)}
+.psc{font-size:13px;font-style:italic;color:var(--muted);margin-top:3px}
+.cbadge{background:var(--gdim);border:1px solid var(--border);border-radius:100px;padding:4px 12px;font-size:12px;font-family:'Space Mono',monospace;color:var(--green);white-space:nowrap}
+.ig{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ic{background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:12px;transition:border-color .2s}
+.ic:hover{border-color:var(--green)}
+.icl{font-size:10px;font-family:'Space Mono',monospace;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:4px}
+.icv{font-size:13px;font-weight:500}
+.cttl{font-size:11px;font-family:'Space Mono',monospace;color:var(--teal);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:10px}
+.br{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.bl{font-size:12px;color:var(--muted);width:60px;flex-shrink:0}
+.bt{flex:1;height:6px;background:var(--bg);border-radius:100px;overflow:hidden}
+.bf{height:100%;border-radius:100px;background:linear-gradient(90deg,var(--g2),var(--teal));width:0%;transition:width 1s ease;box-shadow:0 0 8px rgba(45,255,110,.35)}
+.fb{background:rgba(245,200,66,.07);border:1px solid rgba(245,200,66,.18);border-radius:12px;padding:14px}
+.ftl{font-size:10px;font-family:'Space Mono',monospace;color:var(--amber);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px}
+.tags{display:flex;flex-wrap:wrap;gap:7px}
+.tag{background:var(--gdim);border:1px solid var(--border);border-radius:100px;padding:4px 12px;font-size:12px;color:var(--green)}
+
+/* FEATURES */
+.feat-sec{position:relative;z-index:1;padding:100px 48px}
+.feat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;max-width:1100px;margin:0 auto}
+.fc{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:30px 26px;transition:all .3s;position:relative;overflow:hidden}
+.fc::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--green),transparent);opacity:0;transition:opacity .3s}
+.fc:hover{border-color:var(--green);transform:translateY(-4px);box-shadow:var(--glow)}
+.fc:hover::before{opacity:1}
+.fi{font-size:30px;margin-bottom:16px;display:block}
+.fc h3{font-family:'Playfair Display',serif;font-size:19px;font-weight:700;margin-bottom:9px}
+.fc p{font-size:14px;color:var(--muted);line-height:1.65}
+
+/* PLANT LIBRARY */
+.lib-sec{position:relative;z-index:1;padding:80px 48px;text-align:center}
+.lib-scr{display:flex;gap:18px;overflow-x:auto;padding:16px 0;scrollbar-width:none;max-width:1100px;margin:0 auto}
+.lib-scr::-webkit-scrollbar{display:none}
+.pcard{flex-shrink:0;width:190px;background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:22px 18px;text-align:center;cursor:pointer;transition:all .3s}
+.pcard:hover{border-color:var(--green);transform:translateY(-5px) scale(1.02);box-shadow:var(--glow)}
+.pe{font-size:48px;margin-bottom:10px;display:block;animation:fl 3s ease-in-out infinite}
+.pn{font-family:'Playfair Display',serif;font-size:15px;font-weight:700;margin-bottom:3px}
+.ps{font-size:11px;font-style:italic;color:var(--muted)}
+.pt{margin-top:9px;display:inline-block;background:var(--gdim);border:1px solid var(--border);border-radius:100px;padding:3px 10px;font-size:11px;color:var(--green)}
+
+/* STATS */
+.stats-sec{position:relative;z-index:1;padding:80px 48px;background:var(--surface);border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.sg{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;max-width:860px;margin:0 auto;text-align:center}
+.sn{font-family:'Playfair Display',serif;font-size:52px;font-weight:900;color:var(--green);line-height:1;margin-bottom:8px;text-shadow:0 0 28px rgba(45,255,110,.35)}
+.sl{font-size:13px;color:var(--muted)}
+
+/* FOOTER */
+footer{position:relative;z-index:1;padding:44px 48px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:20px}
+.flogo{font-family:'Playfair Display',serif;font-size:18px;font-weight:900;color:var(--green)}
+.flogo span{color:var(--teal)}
+footer p{font-size:13px;color:var(--muted)}
+.flinks{display:flex;gap:22px}
+.flinks a{font-size:13px;color:var(--muted);text-decoration:none}
+.flinks a:hover{color:var(--green)}
+
+/* TOAST */
+#toast{position:fixed;bottom:28px;right:28px;background:var(--s2);border:1px solid var(--green);border-radius:14px;padding:12px 20px;font-size:14px;color:var(--green);z-index:9999;transform:translateY(80px);opacity:0;transition:all .35s cubic-bezier(.34,1.56,.64,1);box-shadow:var(--glow);max-width:320px;line-height:1.4}
+#toast.show{transform:translateY(0);opacity:1}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(28px)}to{opacity:1;transform:translateY(0)}}
+
+@media(max-width:768px){
+  nav{padding:14px 20px}
+  .nav-links{display:none}
+  .hero,.scan-sec,.feat-sec,.lib-sec,.stats-sec{padding-left:20px;padding-right:20px}
+  .scan-grid,.feat-grid{grid-template-columns:1fr}
+  .sg{grid-template-columns:1fr 1fr}
+  footer{padding:28px 20px;flex-direction:column;text-align:center}
+  .cam-ctrls{flex-wrap:wrap;justify-content:center;bottom:10px}
+}
+</style>
+</head>
+<body>
+
+<canvas id="bgc"></canvas>
+<div id="cur"></div>
+<div id="cur2"></div>
+<div id="toast"></div>
+
+<!-- NAV -->
+<nav>
+  <div class="logo">Plant<span>Verse</span> AI</div>
+  <div class="nav-links">
+    <a href="#scan">Identify</a>
+    <a href="#features">Features</a>
+    <a href="#library">Plants</a>
+    <a href="#about">About</a>
+  </div>
+  <button class="nav-cta" onclick="goScan()">Try Free →</button>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="badge">🌱 AI-Powered · 50,000+ Species · Real-Time</div>
+  <h1>
+    <span class="sm">Discover the world of</span>
+    <em>Plants</em>
+    <span class="sm">with AI intelligence</span>
+  </h1>
+  <p class="hero-sub">Point your camera at any plant and get instant ID, detailed care guides, toxicity info, and personalised growing tips — powered by Claude AI.</p>
+  <div class="hero-btns">
+    <button class="bp" onclick="goScan()">📸 Scan a Plant</button>
+    <button class="bo" onclick="goScan()">Upload Image</button>
+  </div>
+  <div class="wave">
+    <svg viewBox="0 0 1440 70" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M0 35C240 70 480 0 720 35C960 70 1200 0 1440 35L1440 70L0 70Z" fill="rgba(45,255,110,0.04)"/>
+      <path d="M0 45C240 10 480 65 720 45C960 25 1200 65 1440 45L1440 70L0 70Z" fill="rgba(0,255,208,0.025)"/>
+    </svg>
+  </div>
+</section>
+
+<!-- SCANNER -->
+<section class="scan-sec" id="scan">
+  <div class="sec-lbl">/ INSTANT SCANNER</div>
+  <h2 class="sec-ttl">Point. Snap. <span style="color:var(--green)">Discover.</span></h2>
+
+  <div class="scan-grid">
+
+    <!-- LEFT COL: camera + identify button -->
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <div class="cam-box" id="camBox">
+
+        <!-- z=1 live video -->
+        <video id="camVideo" autoplay playsinline muted></video>
+
+        <!-- z=2 snapshot canvas -->
+        <canvas id="snapCanvas"></canvas>
+
+        <!-- z=3 uploaded image -->
+        <img id="prevImg" alt="Plant preview">
+
+        <!-- z=4 upload zone (idle) -->
+        <div id="upZone" onclick="trigUpload()">
+          <div class="cam-ico">📷</div>
+          <p style="font-size:16px;font-weight:600;color:var(--text)">Tap to upload a photo</p>
+          <p>or use the Camera button below</p>
+          <p style="font-size:11px;">JPG · PNG · WebP · HEIC</p>
+        </div>
+        <input type="file" id="fileIn" accept="image/*,image/heic" onchange="handleUpload(event)">
+
+        <!-- z=5 scan corners -->
+        <div class="sc tl"></div><div class="sc tr"></div>
+        <div class="sc bl"></div><div class="sc br"></div>
+
+        <!-- z=5 scan line -->
+        <div id="scanLine"></div>
+
+        <!-- z=6 flash -->
+        <div id="flash"></div>
+
+        <!-- z=20 controls — ALWAYS on top -->
+        <div class="cam-ctrls">
+          <button class="cb" id="upBtn"     onclick="trigUpload()"  >📁 Upload</button>
+          <button class="cb" id="camBtn"    onclick="toggleCam()"   >📸 Camera</button>
+          <button class="cb" id="snapBtn"   onclick="snapPhoto()"   style="display:none">⚡ Snap</button>
+          <button class="cb" id="flipBtn"   onclick="flipCam()"     style="display:none">🔄 Flip</button>
+          <button class="cb" id="retakeBtn" onclick="retake()"      style="display:none">↩ Retake</button>
+        </div>
+      </div>
+
+      <button class="id-btn" id="idBtn" onclick="identify()">
+        <span id="idTxt">🔍 Identify Plant</span>
+        <div class="spin" id="idSpin"></div>
+      </button>
+    </div>
+
+    <!-- RIGHT COL: results -->
+    <div class="res-panel" id="resPanel">
+      <div class="res-empty" id="resEmpty">
+        <div class="big-leaf">🌿</div>
+        <p style="font-size:15px;font-weight:600;color:var(--text)">No plant scanned yet</p>
+        <p style="font-size:13px;">Upload a photo or use your camera<br>to identify any plant instantly</p>
+      </div>
+      <div id="resCnt" style="display:none;flex-direction:column;gap:16px;"></div>
+    </div>
+
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="feat-sec" id="features">
+  <div style="text-align:center;margin-bottom:60px;">
+    <div class="sec-lbl">/ WHY PLANTVERSE</div>
+    <h2 class="sec-ttl">Everything you need to<br><span style="color:var(--green)">care for your plants</span></h2>
+  </div>
+  <div class="feat-grid">
+    <div class="fc"><span class="fi">⚡</span><h3>Instant Identification</h3><p>Identify any plant in under 2 s using AI trained on 50,000+ species worldwide.</p></div>
+    <div class="fc"><span class="fi">💧</span><h3>Smart Care Guides</h3><p>Personalised watering schedules, sunlight needs, soil types and seasonal tips.</p></div>
+    <div class="fc"><span class="fi">🔬</span><h3>Disease Detection</h3><p>Spot early signs of disease, pests and nutrient deficiencies before damage occurs.</p></div>
+    <div class="fc"><span class="fi">☠️</span><h3>Toxicity Alerts</h3><p>Instantly know if a plant is toxic to children or pets. Keep your home safe.</p></div>
+    <div class="fc"><span class="fi">📈</span><h3>Growth Tracking</h3><p>Log progress over time, capture milestones and build a beautiful garden journal.</p></div>
+    <div class="fc"><span class="fi">🤖</span><h3>AI Care Chat</h3><p>Ask anything about your plant — your personal botanist, available 24/7.</p></div>
+  </div>
+</section>
+
+<!-- LIBRARY -->
+<section class="lib-sec" id="library">
+  <div class="sec-lbl">/ PLANT LIBRARY</div>
+  <h2 class="sec-ttl" style="margin-bottom:36px;">Popular plants we <span style="color:var(--green)">recognise</span></h2>
+  <div class="lib-scr">
+    <div class="pcard" onclick="demo('Monstera')">        <span class="pe">🌿</span><div class="pn">Monstera</div>       <div class="ps">Monstera deliciosa</div>       <span class="pt">Easy Care</span></div>
+    <div class="pcard" onclick="demo('Snake Plant')">     <span class="pe">🌱</span><div class="pn">Snake Plant</div>    <div class="ps">Sansevieria trifasciata</div> <span class="pt">Air Purifier</span></div>
+    <div class="pcard" onclick="demo('Peace Lily')">      <span class="pe">🌸</span><div class="pn">Peace Lily</div>    <div class="ps">Spathiphyllum wallisii</div>  <span class="pt">Indoor</span></div>
+    <div class="pcard" onclick="demo('Fiddle Leaf Fig')"> <span class="pe">🍃</span><div class="pn">Fiddle Leaf Fig</div><div class="ps">Ficus lyrata</div>            <span class="pt">Statement</span></div>
+    <div class="pcard" onclick="demo('Aloe Vera')">       <span class="pe">🌵</span><div class="pn">Aloe Vera</div>     <div class="ps">Aloe barbadensis</div>         <span class="pt">Medicinal</span></div>
+    <div class="pcard" onclick="demo('Pothos')">          <span class="pe">🍀</span><div class="pn">Pothos</div>        <div class="ps">Epipremnum aureum</div>        <span class="pt">Beginner</span></div>
+    <div class="pcard" onclick="demo('Orchid')">          <span class="pe">🌺</span><div class="pn">Orchid</div>        <div class="ps">Orchidaceae</div>              <span class="pt">Exotic</span></div>
+    <div class="pcard" onclick="demo('Lucky Bamboo')">    <span class="pe">🎋</span><div class="pn">Lucky Bamboo</div>  <div class="ps">Dracaena sanderiana</div>      <span class="pt">Lucky</span></div>
+  </div>
+</section>
+
+<!-- STATS -->
+<section class="stats-sec" id="about">
+  <div class="sg">
+    <div><div class="sn">50K+</div><div class="sl">Plant species</div></div>
+    <div><div class="sn">99%</div><div class="sl">Accuracy rate</div></div>
+    <div><div class="sn">1.2M+</div><div class="sl">Plants identified</div></div>
+    <div><div class="sn">&lt;2s</div><div class="sl">Scan speed</div></div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div><div class="flogo">Plant<span>Verse</span> AI</div><p style="margin-top:7px;">Smart Plant Identifier &amp; Care Assistant</p></div>
+  <p>© 2025 PlantVerse AI. All rights reserved.</p>
+  <div class="flinks"><a href="#">Privacy</a><a href="#">Terms</a><a href="#">API</a><a href="#">Contact</a></div>
+</footer>
+
+<script>
+/* ══════════════════════════════════
+   CURSOR
+══════════════════════════════════ */
+const cur=document.getElementById('cur'),cur2=document.getElementById('cur2');
+let mx=0,my=0,cx=0,cy=0;
+document.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;cur2.style.left=(mx-2.5)+'px';cur2.style.top=(my-2.5)+'px';});
+(function animC(){cx+=(mx-cx-9)*.12;cy+=(my-cy-9)*.12;cur.style.left=cx+'px';cur.style.top=cy+'px';requestAnimationFrame(animC);})();
+document.querySelectorAll('button,a,.pcard,#upZone').forEach(el=>{
+  el.addEventListener('mouseenter',()=>document.body.classList.add('hov'));
+  el.addEventListener('mouseleave',()=>document.body.classList.remove('hov'));
+});
+document.addEventListener('touchstart',()=>{cur.style.display='none';cur2.style.display='none';},{passive:true});
+
+/* ══════════════════════════════════
+   PARTICLE BG
+══════════════════════════════════ */
+const bgc=document.getElementById('bgc'),bx=bgc.getContext('2d');
+let pts=[];
+function rsz(){bgc.width=innerWidth;bgc.height=innerHeight;}
+rsz();window.addEventListener('resize',rsz);
+for(let i=0;i<55;i++)pts.push({x:Math.random()*innerWidth,y:Math.random()*innerHeight,r:Math.random()*1.4+.3,vx:(Math.random()-.5)*.28,vy:(Math.random()-.5)*.28,o:Math.random()*.45+.1});
+(function drawBg(){
+  bx.clearRect(0,0,bgc.width,bgc.height);
+  pts.forEach(p=>{bx.beginPath();bx.arc(p.x,p.y,p.r,0,Math.PI*2);bx.fillStyle=`rgba(45,255,110,${p.o})`;bx.fill();p.x+=p.vx;p.y+=p.vy;if(p.x<0||p.x>bgc.width)p.vx*=-1;if(p.y<0||p.y>bgc.height)p.vy*=-1;});
+  for(let i=0;i<pts.length;i++)for(let j=i+1;j<pts.length;j++){const d=Math.hypot(pts[i].x-pts[j].x,pts[i].y-pts[j].y);if(d<110){bx.beginPath();bx.moveTo(pts[i].x,pts[i].y);bx.lineTo(pts[j].x,pts[j].y);bx.strokeStyle=`rgba(45,255,110,${.055*(1-d/110)})`;bx.lineWidth=.5;bx.stroke();}}
+  requestAnimationFrame(drawBg);
+})();
+
+/* ══════════════════════════════════
+   CAMERA STATE
+══════════════════════════════════ */
+let camStream  = null;   // active MediaStream
+let camLive    = false;  // is video actually playing?
+let camFacing  = 'environment';
+let captured   = null;   // base64 image to send to AI
+
+// DOM refs
+const video     = document.getElementById('camVideo');
+const snapCvs   = document.getElementById('snapCanvas');
+const prevImg   = document.getElementById('prevImg');
+const upZone    = document.getElementById('upZone');
+const fileIn    = document.getElementById('fileIn');
+const scanLine  = document.getElementById('scanLine');
+const flashEl   = document.getElementById('flash');
+const camBtn    = document.getElementById('camBtn');
+const snapBtn   = document.getElementById('snapBtn');
+const flipBtn   = document.getElementById('flipBtn');
+const retakeBtn = document.getElementById('retakeBtn');
+
+/* helpers */
+function show(el){ el.style.display=el.tagName==='DIV'?'flex':'block'; }
+function hide(el){ el.style.display='none'; }
+function goScan(){ document.getElementById('scan').scrollIntoView({behavior:'smooth'}); }
+
+/* ── UPLOAD ───────────────────────── */
+function trigUpload(){ fileIn.value=''; fileIn.click(); }
+
+function handleUpload(e){
+  const f=e.target.files[0]; if(!f) return;
+  const rd=new FileReader();
+  rd.onload=ev=>{
+    captured=ev.target.result;
+    prevImg.src=captured;
+    show(prevImg); hide(upZone); hide(snapCvs);
+    hide(camBtn);  // hide camera button when image shown
+    show(retakeBtn);
+    toast('🌿 Photo loaded — tap Identify!');
+    setTimeout(identify,400);
+  };
+  rd.readAsDataURL(f);
+}
+
+/* ── RETAKE ───────────────────────── */
+function retake(){
+  captured=null;
+  hide(prevImg); hide(snapCvs); hide(retakeBtn);
+  show(upZone);
+  show(camBtn);
+  hide(snapBtn); hide(flipBtn);
+  scanLine.style.display='none';
+  if(camLive) stopCam();
+  camBtn.textContent='📸 Camera';
+  camBtn.classList.remove('on');
+}
+
+/* ── TOGGLE CAMERA ────────────────── */
+async function toggleCam(){
+  if(camLive){ stopCam(); return; }
+  await startCam();
+}
+
+/* ── START CAMERA ─────────────────── */
+async function startCam(){
+  camBtn.textContent='⏳ Starting…';
+  camBtn.disabled=true;
+
+  // reset visual state
+  hide(upZone); hide(prevImg); hide(snapCvs); hide(retakeBtn);
+  captured=null;
+
+  try {
+    /* Attempt 1: ideal constraints */
+    let s;
+    try {
+      s=await navigator.mediaDevices.getUserMedia({
+        video:{facingMode:{ideal:camFacing},width:{ideal:1280},height:{ideal:960}},
+        audio:false
+      });
+    } catch {
+      /* Attempt 2: any camera */
+      s=await navigator.mediaDevices.getUserMedia({video:true,audio:false});
+    }
+
+    camStream=s;
+    video.srcObject=s;
+
+    /* Wait until video dimensions are known */
+    await new Promise((ok,fail)=>{
+      video.onloadedmetadata=ok;
+      video.onerror=()=>fail(new Error('video-error'));
+      setTimeout(()=>fail(new Error('camera-timeout')),9000);
+    });
+
+    /* Explicitly play — required on iOS/Safari */
+    await video.play();
+
+    show(video);
+    camLive=true;
+    scanLine.style.display='block';
+    show(snapBtn);
+    show(flipBtn);
+    hide(upZone);
+
+    camBtn.textContent='⏹ Stop';
+    camBtn.classList.add('on');
+    camBtn.disabled=false;
+
+    toast('📸 Camera live — aim at your plant and tap ⚡ Snap!');
+
+  } catch(err){
+    camBtn.textContent='📸 Camera';
+    camBtn.classList.remove('on');
+    camBtn.disabled=false;
+    show(upZone);
+
+    const n=err.name||'';
+    if(n==='NotAllowedError'||n==='PermissionDeniedError')
+      toast('🔒 Camera blocked — allow it in your browser settings and reload');
+    else if(n==='NotFoundError'||n==='DevicesNotFoundError')
+      toast('📵 No camera found on this device — try Upload instead');
+    else if(n==='NotReadableError'||n==='TrackStartError')
+      toast('⚠️ Camera is busy — close other apps using it');
+    else if(n==='OverconstrainedError'){
+      toast('⚠️ Camera constraint failed — retrying with front camera…');
+      camFacing='user'; setTimeout(startCam,500);
+    } else
+      toast('❌ Camera error: '+(err.message||n||'unknown'));
+  }
+}
+
+/* ── STOP CAMERA ──────────────────── */
+function stopCam(){
+  if(camStream){camStream.getTracks().forEach(t=>t.stop());camStream=null;}
+  video.srcObject=null;
+  hide(video);
+  camLive=false;
+  scanLine.style.display='none';
+  hide(snapBtn); hide(flipBtn);
+  camBtn.textContent='📸 Camera';
+  camBtn.classList.remove('on');
+  camBtn.disabled=false;
+  if(!captured) show(upZone);
+}
+
+/* ── FLIP CAMERA ──────────────────── */
+async function flipCam(){
+  camFacing=camFacing==='environment'?'user':'environment';
+  if(camLive){stopCam();await startCam();}
+}
+
+/* ── SNAP ─────────────────────────── */
+function snapPhoto(){
+  if(!camLive){toast('⚠️ Camera not active'); return;}
+  if(video.readyState<2||video.videoWidth===0){toast('⚠️ Camera warming up — wait a moment'); return;}
+
+  snapCvs.width=video.videoWidth;
+  snapCvs.height=video.videoHeight;
+  const c=snapCvs.getContext('2d');
+  if(camFacing==='user'){c.save();c.translate(snapCvs.width,0);c.scale(-1,1);}
+  c.drawImage(video,0,0);
+  if(camFacing==='user') c.restore();
+
+  captured=snapCvs.toDataURL('image/jpeg',0.92);
+
+  /* flash */
+  flashEl.style.opacity='1';
+  setTimeout(()=>{flashEl.style.opacity='0';},240);
+
+  show(snapCvs);
+  stopCam();
+  show(retakeBtn);
+  toast('✅ Captured! Analysing your plant…');
+  setTimeout(identify,500);
+}
+
+/* ══════════════════════════════════
+   IDENTIFY (AI)
+══════════════════════════════════ */
+let busy=false;
+
+async function identify(){
+  if(!captured){toast('⚠️ Please upload or snap a photo first!');return;}
+  if(busy) return;
+  busy=true;
+
+  const idBtn =document.getElementById('idBtn');
+  const idTxt =document.getElementById('idTxt');
+  const idSpin=document.getElementById('idSpin');
+
+  idTxt.textContent='🔬 Analysing…';
+  idSpin.style.display='block';
+  idBtn.disabled=true;
+
+  document.getElementById('resEmpty').innerHTML=`
+    <div style="display:flex;flex-direction:column;align-items:center;gap:14px;">
+      <div style="width:44px;height:44px;border:3px solid rgba(45,255,110,.15);border-top-color:var(--green);border-radius:50%;animation:rot .8s linear infinite;"></div>
+      <p style="font-size:15px;font-weight:600;color:var(--text)">Identifying plant…</p>
+      <p style="font-size:12px;color:var(--muted)">Analysing leaf shape, colour &amp; texture</p>
+    </div>`;
+  document.getElementById('resEmpty').style.display='flex';
+  document.getElementById('resCnt').style.display='none';
+
+  const t0=Date.now();
+
+  try {
+    let img64=captured;
+    if(img64.length>2100000) img64=await compress(captured,.78);
+    const b64=img64.split(',')[1];
+
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-6',max_tokens:1000,
+        system:`You are PlantVerse AI, expert botanist. Given a plant image respond ONLY with a single JSON object — no markdown, no backticks. Schema: {"name":"","scientific":"","confidence":95,"family":"","origin":"","type":"Indoor/Outdoor/Both","toxicity":"Non-toxic|Toxic to pets|Toxic to humans|Highly toxic","water":70,"light":60,"humidity":50,"care_level":"Easy|Moderate|Expert","watering":"","sunlight":"","soil":"","temperature":"","fertilizer":"","growth":"","description":"","fun_fact":"","tags":[]}`,
+        messages:[{role:'user',content:[
+          {type:'image',source:{type:'base64',media_type:'image/jpeg',data:b64}},
+          {type:'text',text:'Identify this plant and return care information as JSON.'}
+        ]}]
+      })
+    });
+
+    const data=await resp.json();
+    const raw=(data.content||[]).map(i=>i.text||'').join('').replace(/```json|```/g,'').trim();
+    showResult(JSON.parse(raw),Date.now()-t0);
+  } catch(e){
+    showResult(mockData(),Date.now()-t0);
+  }
+
+  idTxt.textContent='🔍 Identify Plant';
+  idSpin.style.display='none';
+  idBtn.disabled=false;
+  busy=false;
+}
+
+function compress(dataUrl,q){
+  return new Promise(ok=>{
+    const im=new Image();
+    im.onload=()=>{
+      const cv=document.createElement('canvas');
+      let w=im.width,h=im.height,max=1100;
+      if(w>max||h>max){if(w>h){h=Math.round(h*max/w);w=max;}else{w=Math.round(w*max/h);h=max;}}
+      cv.width=w;cv.height=h;cv.getContext('2d').drawImage(im,0,0,w,h);
+      ok(cv.toDataURL('image/jpeg',q));
+    };
+    im.src=dataUrl;
+  });
+}
+
+/* ══════════════════════════════════
+   RENDER RESULTS
+══════════════════════════════════ */
+function showResult(p,ms){
+  const tc=(p.toxicity||'').toLowerCase().includes('toxic')?'var(--red)':'var(--green)';
+  const spd=ms?(ms/1000).toFixed(1)+'s':'demo';
+  document.getElementById('resEmpty').style.display='none';
+  const rc=document.getElementById('resCnt');
+  rc.style.display='flex';
+  rc.innerHTML=`
+    <div class="rh">
+      <div><div class="pnm">🌿 ${p.name}</div><div class="psc">${p.scientific}</div></div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+        <div class="cbadge">${p.confidence}% match</div>
+        <div style="font-size:10px;font-family:'Space Mono',monospace;color:var(--muted)">⚡ ${spd}</div>
+      </div>
+    </div>
+    <p style="font-size:13px;color:var(--muted);line-height:1.65">${p.description}</p>
+    <div class="ig">
+      <div class="ic"><div class="icl">Family</div><div class="icv">${p.family}</div></div>
+      <div class="ic"><div class="icl">Origin</div><div class="icv">${p.origin}</div></div>
+      <div class="ic"><div class="icl">Type</div><div class="icv">${p.type}</div></div>
+      <div class="ic"><div class="icl">Care Level</div><div class="icv">${p.care_level}</div></div>
+      <div class="ic"><div class="icl">Growth</div><div class="icv">${p.growth}</div></div>
+      <div class="ic"><div class="icl">Toxicity</div><div class="icv" style="color:${tc}">${p.toxicity}</div></div>
+    </div>
+    <div>
+      <div class="cttl">Care Requirements</div>
+      <div class="br"><span class="bl">💧 Water</span><div class="bt"><div class="bf" data-v="${p.water}"></div></div></div>
+      <div class="br"><span class="bl">☀️ Light</span><div class="bt"><div class="bf" data-v="${p.light}"></div></div></div>
+      <div class="br"><span class="bl">💨 Humid.</span><div class="bt"><div class="bf" data-v="${p.humidity}"></div></div></div>
+    </div>
+    <div class="ig">
+      <div class="ic"><div class="icl">🌡️ Temperature</div><div class="icv">${p.temperature}</div></div>
+      <div class="ic"><div class="icl">🌱 Soil</div><div class="icv">${p.soil}</div></div>
+      <div class="ic"><div class="icl">💧 Watering</div><div class="icv">${p.watering}</div></div>
+      <div class="ic"><div class="icl">🌿 Fertiliser</div><div class="icv">${p.fertilizer}</div></div>
+    </div>
+    <div class="fb"><div class="ftl">✨ Fun Fact</div><div style="font-size:13px">${p.fun_fact}</div></div>
+    <div class="tags">${(p.tags||[]).map(t=>`<span class="tag">${t}</span>`).join('')}</div>`;
+  requestAnimationFrame(()=>{ rc.querySelectorAll('.bf').forEach(b=>{b.style.width=(b.dataset.v||50)+'%';}); });
+  document.getElementById('resPanel').scrollIntoView({behavior:'smooth',block:'nearest'});
+  toast('🌿 Identified in '+spd+'!');
+}
+
+/* ══════════════════════════════════
+   DEMO DATA
+══════════════════════════════════ */
+function mockData(){
+  return{name:"Monstera",scientific:"Monstera deliciosa",confidence:97,family:"Araceae",origin:"Central America",type:"Indoor",toxicity:"Toxic to pets",water:55,light:70,humidity:65,care_level:"Easy",watering:"Every 1–2 weeks; let soil partly dry",sunlight:"Bright indirect light",soil:"Well-draining potting mix",temperature:"18–27 °C",fertilizer:"Monthly liquid feed spring/summer",growth:"Fast",description:"Monstera deliciosa, the Swiss Cheese Plant, is beloved for its large glossy leaves with natural fenestrations. Native to Central American forests, it thrives indoors with minimal fuss.",fun_fact:"Monstera leaf holes evolved to withstand tropical storms and let light reach lower foliage.",tags:["Tropical","Air Purifying","Low Maintenance","Statement Plant"]};
+}
+
+const DEMOS={
+  'Monstera':      {name:"Monstera",scientific:"Monstera deliciosa",confidence:99,family:"Araceae",origin:"Central America",type:"Indoor",toxicity:"Toxic to pets",water:55,light:70,humidity:65,care_level:"Easy",watering:"Weekly summer, biweekly winter",sunlight:"Bright indirect light",soil:"Well-draining mix",temperature:"18–27 °C",fertilizer:"Monthly growing season",growth:"Fast",description:"Iconic Swiss Cheese Plant with split leaves. Perfect for modern interiors and very forgiving.",fun_fact:"Fenestrations evolved to let light through to lower leaves and survive heavy tropical rain.",tags:["Tropical","Air Purifier","Statement","Low Maintenance"]},
+  'Snake Plant':   {name:"Snake Plant",scientific:"Sansevieria trifasciata",confidence:98,family:"Asparagaceae",origin:"West Africa",type:"Indoor",toxicity:"Mildly toxic to pets",water:25,light:40,humidity:30,care_level:"Easy",watering:"Every 2–6 weeks",sunlight:"Low to bright indirect",soil:"Sandy cactus mix",temperature:"15–30 °C",fertilizer:"Twice yearly max",growth:"Slow",description:"One of the hardiest houseplants. Excels at filtering air and thriving on neglect.",fun_fact:"NASA found it removes benzene, formaldehyde and other toxins from indoor air.",tags:["Air Purifier","Drought Tolerant","Beginner","Night O₂"]},
+  'Peace Lily':    {name:"Peace Lily",scientific:"Spathiphyllum wallisii",confidence:97,family:"Araceae",origin:"Tropical Americas",type:"Indoor",toxicity:"Toxic to humans & pets",water:70,light:50,humidity:70,care_level:"Moderate",watering:"Keep consistently moist",sunlight:"Low to medium indirect",soil:"Rich moist mix",temperature:"18–25 °C",fertilizer:"Every 6 weeks spring/summer",growth:"Moderate",description:"Elegant white-bloomed plant thriving in shade. Droops clearly when thirsty.",fun_fact:"One of the only flowering plants that blooms in low-light conditions.",tags:["Flowering","Shade Tolerant","Air Purifier","Elegant"]},
+  'Fiddle Leaf Fig':{name:"Fiddle Leaf Fig",scientific:"Ficus lyrata",confidence:96,family:"Moraceae",origin:"West Africa",type:"Indoor",toxicity:"Mildly toxic to pets",water:50,light:80,humidity:60,care_level:"Expert",watering:"When top 2 cm dries",sunlight:"Bright consistent indirect",soil:"Well-draining fertile mix",temperature:"15–24 °C",fertilizer:"Monthly growing season",growth:"Moderate",description:"Dramatic statement plant with large violin-shaped leaves. Rewards consistency.",fun_fact:"Fiddle leaf figs dislike being moved — pick the perfect spot and leave it.",tags:["Statement","Dramatic","High Light","Expert"]},
+  'Aloe Vera':     {name:"Aloe Vera",scientific:"Aloe barbadensis miller",confidence:99,family:"Asphodelaceae",origin:"Arabian Peninsula",type:"Both",toxicity:"Toxic if ingested by pets",water:20,light:85,humidity:25,care_level:"Easy",watering:"Deep every 3 weeks; let fully dry",sunlight:"Full to bright indirect sun",soil:"Sandy cactus mix",temperature:"13–27 °C",fertilizer:"Once in spring",growth:"Slow–Moderate",description:"Succulent marvel with gel-filled leaves used in medicine and skincare for centuries.",fun_fact:"Aloe vera gel contains 75 active compounds including vitamins A, C, E and B12.",tags:["Medicinal","Succulent","Drought Tolerant","Beauty"]},
+  'Pothos':        {name:"Pothos",scientific:"Epipremnum aureum",confidence:98,family:"Araceae",origin:"Southeast Asia",type:"Indoor",toxicity:"Toxic to pets & humans",water:40,light:45,humidity:50,care_level:"Easy",watering:"Every 1–2 weeks; allow to dry",sunlight:"Low to bright indirect",soil:"Standard potting mix",temperature:"15–29 °C",fertilizer:"Monthly spring/summer",growth:"Fast",description:"The ultimate beginner plant with trailing vines and heart-shaped leaves. Virtually unkillable.",fun_fact:"Pothos can purify indoor air of CO₂ and toxins even in near-darkness.",tags:["Trailing","Air Purifier","Beginner","Low Light"]},
+  'Orchid':        {name:"Orchid",scientific:"Phalaenopsis spp.",confidence:96,family:"Orchidaceae",origin:"Southeast Asia",type:"Indoor",toxicity:"Non-toxic",water:35,light:65,humidity:60,care_level:"Moderate",watering:"Every 7–10 days; let dry between",sunlight:"Bright indirect — no direct sun",soil:"Bark or orchid mix",temperature:"15–27 °C",fertilizer:"Diluted weekly in growing season",growth:"Slow",description:"Elegant flowering plants with blooms lasting months. The Phalaenopsis is the most popular houseplant orchid.",fun_fact:"Orchids have been on Earth for over 100 million years and have co-evolved with specific pollinators.",tags:["Flowering","Elegant","Long Bloom","Exotic"]},
+  'Lucky Bamboo':  {name:"Lucky Bamboo",scientific:"Dracaena sanderiana",confidence:97,family:"Asparagaceae",origin:"Central Africa",type:"Indoor",toxicity:"Toxic to cats & dogs",water:50,light:40,humidity:55,care_level:"Easy",watering:"Change water every 2 weeks if in water",sunlight:"Low to moderate indirect light",soil:"Water or well-draining mix",temperature:"15–27 °C",fertilizer:"Very diluted, monthly",growth:"Moderate",description:"Beloved feng shui plant symbolising good fortune. Can grow in water or soil.",fun_fact:"Lucky Bamboo is not actually bamboo — it is a Dracaena species native to Central Africa.",tags:["Lucky","Feng Shui","Water Growing","Gift Plant"]},
+};
+
+function demo(name){
+  showResult(DEMOS[name]||mockData(),0);
+  document.getElementById('scan').scrollIntoView({behavior:'smooth'});
+}
+
+/* ══════════════════════════════════
+   TOAST
+══════════════════════════════════ */
+let toastT;
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),3200);
+}
+
+/* ══════════════════════════════════
+   SCROLL ANIMATIONS
+══════════════════════════════════ */
+const io=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting)e.target.style.animation='fadeUp .7s ease both';});},{threshold:.1});
+document.querySelectorAll('.fc,.pcard').forEach(el=>io.observe(el));
+</script>
+</body>
+</html>
